@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadSpecTypes, paginate, searchSpecTypes, filterByDomain, filterByValueType } from '@/lib/data/loader';
+import { loadSpecTypes, paginate, searchSpecTypes, filterByDomain, filterByValueType, loadComponentSpecMappings } from '@/lib/data/loader';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,8 +9,9 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('query') || '';
     const domain = searchParams.get('domain');
     const valueType = searchParams.get('valueType');
-    const sortBy = searchParams.get('sortBy') || 'primaryName';
-    const sortOrder = searchParams.get('sortOrder') || 'asc';
+    const componentType = searchParams.get('componentType');
+    const sortBy = searchParams.get('sortBy');
+    const sortDirection = searchParams.get('sortDirection');
 
     // Load all spec types
     let specTypes = loadSpecTypes();
@@ -30,22 +31,58 @@ export async function GET(request: NextRequest) {
       specTypes = filterByValueType(valueType, specTypes);
     }
 
+    // Apply component type filter
+    if (componentType && componentType !== 'ALL') {
+      const mappings = loadComponentSpecMappings();
+      const specIdsForComponent = new Set(
+        mappings
+          .filter(m => m.componentTypeId === componentType)
+          .map(m => m.specTypeId)
+      );
+      specTypes = specTypes.filter(spec => specIdsForComponent.has(spec.id));
+    }
+
     // Sort
-    specTypes.sort((a, b) => {
-      let aVal: any = a[sortBy as keyof typeof a];
-      let bVal: any = b[sortBy as keyof typeof b];
-      
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        aVal = aVal.toLowerCase();
-        bVal = bVal.toLowerCase();
-      }
-      
-      if (sortOrder === 'asc') {
-        return aVal > bVal ? 1 : -1;
-      } else {
-        return aVal < bVal ? 1 : -1;
-      }
-    });
+    if (sortBy && sortDirection) {
+      specTypes.sort((a, b) => {
+        let aVal: any;
+        let bVal: any;
+
+        // Map column names to spec type properties
+        switch (sortBy) {
+          case 'name':
+            aVal = a.primaryName;
+            bVal = b.primaryName;
+            break;
+          case 'domain':
+            aVal = a.domain;
+            bVal = b.domain;
+            break;
+          case 'valueType':
+            aVal = a.valueType;
+            bVal = b.valueType;
+            break;
+          case 'unit':
+            aVal = a.primaryUnit || '';
+            bVal = b.primaryUnit || '';
+            break;
+          default:
+            aVal = a.primaryName;
+            bVal = b.primaryName;
+        }
+        
+        if (typeof aVal === 'string' && typeof bVal === 'string') {
+          aVal = aVal.toLowerCase();
+          bVal = bVal.toLowerCase();
+        }
+        
+        if (sortDirection === 'asc') {
+          return aVal > bVal ? 1 : -1;
+        } else {
+          return aVal < bVal ? 1 : -1;
+        }
+      });
+    }
 
     // Paginate
     const result = paginate(specTypes, page, pageSize);

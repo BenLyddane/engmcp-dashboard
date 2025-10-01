@@ -1,12 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { SpecType } from '@/types/schemas';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Check, ChevronsUpDown, ArrowUpDown } from 'lucide-react';
+import { SpecType, ComponentType } from '@/types/schemas';
+import { cn } from '@/lib/utils';
+
+type SortColumn = 'name' | 'domain' | 'valueType' | 'unit' | null;
+type SortDirection = 'asc' | 'desc' | null;
 
 export default function DataExplorer() {
   const [data, setData] = useState<SpecType[]>([]);
@@ -14,9 +22,31 @@ export default function DataExplorer() {
   const [query, setQuery] = useState('');
   const [domain, setDomain] = useState('ALL');
   const [valueType, setValueType] = useState('ALL');
+  const [componentTypes, setComponentTypes] = useState<ComponentType[]>([]);
+  const [selectedComponent, setSelectedComponent] = useState<string>('ALL');
+  const [openComponentSelect, setOpenComponentSelect] = useState(false);
+  const [sortColumn, setSortColumn] = useState<SortColumn>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+
+  // Load component types on mount
+  useEffect(() => {
+    const loadComponentTypes = async () => {
+      try {
+        // You may need to create this endpoint
+        const response = await fetch('/api/components');
+        if (response.ok) {
+          const result = await response.json();
+          setComponentTypes(result.data || []);
+        }
+      } catch (error) {
+        console.error('Error loading component types:', error);
+      }
+    };
+    loadComponentTypes();
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -27,6 +57,9 @@ export default function DataExplorer() {
         ...(query && { query }),
         ...(domain !== 'ALL' && { domain }),
         ...(valueType !== 'ALL' && { valueType }),
+        ...(selectedComponent !== 'ALL' && { componentType: selectedComponent }),
+        ...(sortColumn && { sortBy: sortColumn }),
+        ...(sortDirection && { sortDirection }),
       });
 
       const response = await fetch(`/api/specs?${params}`);
@@ -42,20 +75,49 @@ export default function DataExplorer() {
     }
   };
 
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      fetchData();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
   useEffect(() => {
     fetchData();
-  }, [page, domain, valueType]);
+  }, [page, domain, valueType, selectedComponent, sortColumn, sortDirection]);
 
-  const handleSearch = () => {
-    setPage(1);
-    fetchData();
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearch();
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      // Cycle through: asc -> desc -> null
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortColumn(null);
+        setSortDirection(null);
+      }
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
     }
   };
+
+  const SortableHeader = ({ column, children }: { column: SortColumn; children: React.ReactNode }) => (
+    <TableHead 
+      className="cursor-pointer select-none hover:bg-muted/50"
+      onClick={() => handleSort(column)}
+    >
+      <div className="flex items-center gap-2">
+        {children}
+        <ArrowUpDown className={cn(
+          "h-4 w-4",
+          sortColumn === column ? "opacity-100" : "opacity-30"
+        )} />
+      </div>
+    </TableHead>
+  );
 
   return (
     <div className="space-y-4">
@@ -63,12 +125,72 @@ export default function DataExplorer() {
       <div className="flex gap-4 flex-wrap">
         <div className="flex-1 min-w-[200px]">
           <Input
-            placeholder="Search spec types..."
+            placeholder="Search spec types (live search)..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
           />
         </div>
+
+        {/* Component Type Filter */}
+        <Popover open={openComponentSelect} onOpenChange={setOpenComponentSelect}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={openComponentSelect}
+              className="w-[220px] justify-between"
+            >
+              {selectedComponent === 'ALL'
+                ? 'All Component Types'
+                : componentTypes.find((c) => c.id === selectedComponent)?.name || 'Select component...'}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[220px] p-0">
+            <Command>
+              <CommandInput placeholder="Search component types..." />
+              <CommandList>
+                <CommandEmpty>No component type found.</CommandEmpty>
+                <CommandGroup>
+                  <CommandItem
+                    key="ALL"
+                    value="ALL"
+                    onSelect={() => {
+                      setSelectedComponent('ALL');
+                      setOpenComponentSelect(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        selectedComponent === 'ALL' ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                    All Component Types
+                  </CommandItem>
+                  {componentTypes.map((component) => (
+                    <CommandItem
+                      key={component.id}
+                      value={component.name}
+                      onSelect={() => {
+                        setSelectedComponent(component.id);
+                        setOpenComponentSelect(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          selectedComponent === component.id ? 'opacity-100' : 'opacity-0'
+                        )}
+                      />
+                      {component.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
         
         <Select value={domain} onValueChange={setDomain}>
           <SelectTrigger className="w-[180px]">
@@ -96,8 +218,6 @@ export default function DataExplorer() {
             <SelectItem value="BOOLEAN">Boolean</SelectItem>
           </SelectContent>
         </Select>
-
-        <Button onClick={handleSearch}>Search</Button>
       </div>
 
       {/* Results Count */}
@@ -110,12 +230,12 @@ export default function DataExplorer() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Domain</TableHead>
-              <TableHead>Value Type</TableHead>
-              <TableHead>Primary Unit</TableHead>
+              <SortableHeader column="name">Name</SortableHeader>
+              <SortableHeader column="domain">Domain</SortableHeader>
+              <SortableHeader column="valueType">Value Type</SortableHeader>
+              <SortableHeader column="unit">Primary Unit</SortableHeader>
               <TableHead>Alternate Units</TableHead>
-              <TableHead className="w-48">Description</TableHead>
+              <TableHead className="w-64">Description</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -157,10 +277,26 @@ export default function DataExplorer() {
                       <span className="text-muted-foreground text-sm">None</span>
                     )}
                   </TableCell>
-                  <TableCell className="w-48">
-                    <div className="truncate text-sm" title={spec.description}>
-                      {spec.description}
-                    </div>
+                  <TableCell className="w-64">
+                    <HoverCard>
+                      <HoverCardTrigger asChild>
+                        <div className="text-sm cursor-help line-clamp-3">
+                          {spec.description}
+                        </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-96">
+                        <div className="space-y-2">
+                          <h4 className="font-semibold">{spec.primaryName}</h4>
+                          <p className="text-sm text-muted-foreground">{spec.description}</p>
+                          {spec.examples && spec.examples.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium mt-2">Examples:</p>
+                              <p className="text-xs text-muted-foreground">{spec.examples.join(', ')}</p>
+                            </div>
+                          )}
+                        </div>
+                      </HoverCardContent>
+                    </HoverCard>
                   </TableCell>
                 </TableRow>
               ))

@@ -115,11 +115,17 @@ export function loadComponentTypes(): ComponentType[] {
  * Load component-spec mappings if available
  */
 export function loadComponentSpecMappings(): ComponentSpecMapping[] {
-  const filePath = join(OUTPUT_DIR, 'component-spec-mappings.json');
+  // Try final mappings file first
+  let filePath = join(OUTPUT_DIR, 'component-spec-mappings.json');
   
+  // If not found, try checkpoint file
   if (!existsSync(filePath)) {
-    console.warn('component-spec-mappings.json not found (may not be generated yet)');
-    return [];
+    filePath = join(OUTPUT_DIR, 'mappings-checkpoint.json');
+    
+    if (!existsSync(filePath)) {
+      console.warn('component-spec-mappings.json and mappings-checkpoint.json not found (may not be generated yet)');
+      return [];
+    }
   }
 
   try {
