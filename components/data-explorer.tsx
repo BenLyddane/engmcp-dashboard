@@ -286,20 +286,53 @@ export default function DataExplorer() {
                     <Badge variant="secondary">{spec.valueType}</Badge>
                   </TableCell>
                   <TableCell className="w-28">
-                    <span className="text-sm">{spec.primaryUnit || 'N/A'}</span>
+                    <span className="text-sm">
+                      {(() => {
+                        // Extract primary unit from first example if available
+                        if (spec.examples && spec.examples.length > 0) {
+                          const firstExample = spec.examples[0] as any;
+                          if (typeof firstExample === 'object' && firstExample.unit) {
+                            return firstExample.unit;
+                          }
+                        }
+                        return (spec as any).primaryUnit || 'N/A';
+                      })()}
+                    </span>
                   </TableCell>
                   <TableCell className="w-40">
-                    {spec.alternateUnits && spec.alternateUnits.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {spec.alternateUnits.map((unit, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
-                            {unit}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">None</span>
-                    )}
+                    {(() => {
+                      // Extract unique units from examples
+                      const units = new Set<string>();
+                      if (spec.examples && Array.isArray(spec.examples)) {
+                        spec.examples.forEach((ex: any) => {
+                          if (typeof ex === 'object' && ex.unit) {
+                            units.add(ex.unit);
+                          }
+                        });
+                      }
+                      if ((spec as any).alternateUnits && Array.isArray((spec as any).alternateUnits)) {
+                        ((spec as any).alternateUnits as string[]).forEach((u: string) => units.add(u));
+                      }
+                      
+                      // Remove the primary unit from alternates
+                      const firstExample = spec.examples?.[0] as any;
+                      const primaryUnit = (typeof firstExample === 'object' && firstExample?.unit) || (spec as any).primaryUnit;
+                      if (primaryUnit) units.delete(primaryUnit);
+                      
+                      const alternateUnitsArray = Array.from(units);
+                      
+                      return alternateUnitsArray.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {alternateUnitsArray.map((unit, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {unit}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">None</span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="w-80">
                     <HoverCard>
@@ -313,9 +346,20 @@ export default function DataExplorer() {
                           <h4 className="font-semibold">{spec.primaryName}</h4>
                           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{spec.description}</p>
                           {spec.examples && spec.examples.length > 0 && (
-                            <div>
-                              <p className="text-xs font-medium mt-2">Examples:</p>
-                              <p className="text-xs text-muted-foreground">{spec.examples.join(', ')}</p>
+                            <div className="mt-3">
+                              <p className="text-xs font-medium mb-2">Examples:</p>
+                              <div className="space-y-2">
+                                {spec.examples.slice(0, 3).map((example: any, idx: number) => (
+                                  <div key={idx} className="text-xs">
+                                    <span className="font-medium">
+                                      {typeof example === 'object' ? `${example.value} ${example.unit}` : example}
+                                    </span>
+                                    {typeof example === 'object' && example.context && (
+                                      <p className="text-muted-foreground mt-0.5">{example.context}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
