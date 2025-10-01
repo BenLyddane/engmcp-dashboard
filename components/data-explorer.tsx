@@ -249,6 +249,7 @@ export default function DataExplorer() {
                   )} />
                 </div>
               </TableHead>
+              <TableHead className="w-48">Value Options</TableHead>
               <TableHead className="w-28">
                 <div className="flex items-center gap-2 cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('unit')}>
                   Primary Unit
@@ -284,6 +285,50 @@ export default function DataExplorer() {
                   </TableCell>
                   <TableCell className="w-32">
                     <Badge variant="secondary">{spec.valueType}</Badge>
+                  </TableCell>
+                  <TableCell className="w-48">
+                    {spec.valueOptions && spec.valueOptions.length > 0 ? (
+                      <HoverCard>
+                        <HoverCardTrigger asChild>
+                          <div className="flex flex-wrap gap-1 cursor-help">
+                            {spec.valueOptions.slice(0, 3).map((option, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {option.primaryValue}
+                              </Badge>
+                            ))}
+                            {spec.valueOptions.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{spec.valueOptions.length - 3} more
+                              </Badge>
+                            )}
+                          </div>
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-80" side="left">
+                          <div className="space-y-2">
+                            <h4 className="font-semibold text-sm">All Value Options ({spec.valueOptions.length})</h4>
+                            <div className="max-h-64 overflow-y-auto space-y-1">
+                              {spec.valueOptions.map((option, idx) => (
+                                <div key={idx} className="text-xs border-b pb-1 last:border-0">
+                                  <span className="font-medium">{option.primaryValue}</span>
+                                  {option.description && (
+                                    <p className="text-muted-foreground mt-0.5">{option.description}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </HoverCardContent>
+                      </HoverCard>
+                    ) : (spec.valueType === 'RANGE' || spec.valueType === 'NUMERIC') && 
+                       (spec.minValue !== undefined || spec.maxValue !== undefined) ? (
+                      <div className="text-sm">
+                        <Badge variant="outline" className="text-xs">
+                          {spec.minValue !== undefined ? spec.minValue : '−∞'} to {spec.maxValue !== undefined ? spec.maxValue : '∞'}
+                        </Badge>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">N/A</span>
+                    )}
                   </TableCell>
                   <TableCell className="w-28">
                     <span className="text-sm">
@@ -334,7 +379,7 @@ export default function DataExplorer() {
                       );
                     })()}
                   </TableCell>
-                  <TableCell className="w-80">
+                  <TableCell className="max-w-md">
                     <HoverCard>
                       <HoverCardTrigger asChild>
                         <div className="text-sm cursor-help line-clamp-2 hover:underline">
