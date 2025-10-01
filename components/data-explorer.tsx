@@ -231,11 +231,35 @@ export default function DataExplorer() {
           <TableHeader>
             <TableRow>
               <SortableHeader column="name">Name</SortableHeader>
-              <SortableHeader column="domain">Domain</SortableHeader>
-              <SortableHeader column="valueType">Value Type</SortableHeader>
-              <SortableHeader column="unit">Primary Unit</SortableHeader>
-              <TableHead>Alternate Units</TableHead>
-              <TableHead className="w-64">Description</TableHead>
+              <TableHead className="w-32">
+                <div className="flex items-center gap-2 cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('domain')}>
+                  Domain
+                  <ArrowUpDown className={cn(
+                    "h-4 w-4",
+                    sortColumn === 'domain' ? "opacity-100" : "opacity-30"
+                  )} />
+                </div>
+              </TableHead>
+              <TableHead className="w-32">
+                <div className="flex items-center gap-2 cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('valueType')}>
+                  Value Type
+                  <ArrowUpDown className={cn(
+                    "h-4 w-4",
+                    sortColumn === 'valueType' ? "opacity-100" : "opacity-30"
+                  )} />
+                </div>
+              </TableHead>
+              <TableHead className="w-28">
+                <div className="flex items-center gap-2 cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('unit')}>
+                  Primary Unit
+                  <ArrowUpDown className={cn(
+                    "h-4 w-4",
+                    sortColumn === 'unit' ? "opacity-100" : "opacity-30"
+                  )} />
+                </div>
+              </TableHead>
+              <TableHead className="w-40">Alternate Units</TableHead>
+              <TableHead className="w-80">Description</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -255,16 +279,16 @@ export default function DataExplorer() {
               data.map((spec) => (
                 <TableRow key={spec.id}>
                   <TableCell className="font-medium">{spec.primaryName}</TableCell>
-                  <TableCell>
+                  <TableCell className="w-32">
                     <Badge variant="outline">{spec.domain}</Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="w-32">
                     <Badge variant="secondary">{spec.valueType}</Badge>
                   </TableCell>
-                  <TableCell>
-                    {spec.primaryUnit || 'N/A'}
+                  <TableCell className="w-28">
+                    <span className="text-sm">{spec.primaryUnit || 'N/A'}</span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="w-40">
                     {spec.alternateUnits && spec.alternateUnits.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {spec.alternateUnits.map((unit, idx) => (
@@ -277,17 +301,17 @@ export default function DataExplorer() {
                       <span className="text-muted-foreground text-sm">None</span>
                     )}
                   </TableCell>
-                  <TableCell className="w-64">
+                  <TableCell className="w-80">
                     <HoverCard>
                       <HoverCardTrigger asChild>
-                        <div className="text-sm cursor-help line-clamp-3">
+                        <div className="text-sm cursor-help line-clamp-2 hover:underline">
                           {spec.description}
                         </div>
                       </HoverCardTrigger>
-                      <HoverCardContent className="w-96">
+                      <HoverCardContent className="w-96" side="left">
                         <div className="space-y-2">
                           <h4 className="font-semibold">{spec.primaryName}</h4>
-                          <p className="text-sm text-muted-foreground">{spec.description}</p>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{spec.description}</p>
                           {spec.examples && spec.examples.length > 0 && (
                             <div>
                               <p className="text-xs font-medium mt-2">Examples:</p>
